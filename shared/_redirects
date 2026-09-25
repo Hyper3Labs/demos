@@ -1,0 +1,4 @@
+/credits /haystack-hyper3-clip-v1/credits 301
+/assets/* /haystack-hyper3-clip-v1/assets/:splat 301
+/static/* /haystack-hyper3-clip-v1/static/:splat 301
+/data/* /haystack-hyper3-clip-v1/data/:splat 301

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Explore Hyper3-CLIP image retrieval: move along a fixed direction in hyperbolic space and compare with a fixed CLIP ranking."><title>Explore images · hyper³labs</title>
+  <link rel="icon" type="image/svg+xml" href="/haystack-hyper3-clip-v1/static/hyper3labs-logo.svg">
+  <link rel="stylesheet" href="/haystack-hyper3-clip-v1/static/style.css?v=public-20260925">
+<link rel="canonical" href="https://demos.hyper3labs.com/haystack-hyper3-clip-v1/">
+</head>
+<body>
+<header>
+  <a class="brand" href="/" aria-label="hyper³labs home"><img src="/haystack-hyper3-clip-v1/static/hyper3labs-logo.svg" alt="" width="42" height="42"><span>hyper³labs</span></a>
+  <button class="text-button" id="pipelineBtn">How it works ↗</button>
+</header>
+<main>
+  <div class="heading"><p class="eyebrow">HYPER3-CLIP V1 · BUILT WITH HAYSTACK</p><h1>Explore an idea.</h1><p>Move the slider. Follow the images.</p></div>
+  <nav id="examples" class="examples" aria-label="Example scenes"></nav>
+  <section class="breadth-control" aria-label="Search breadth">
+    <div class="slider-labels"><label for="breadth">Broad</label><span>Specific</span></div>
+    <input id="breadth" type="range" min="0" max="100" step="1" value="30" aria-label="Broad to specific" aria-valuetext="30 percent toward specific" disabled>
+  </section>
+  <p id="error" role="alert" hidden></p>
+  <div class="results" id="results" aria-busy="true">
+    <section class="model-panel" aria-labelledby="hyperTitle"><div class="panel-heading"><h2 id="hyperTitle">Hyper3-CLIP <span>v1</span></h2><span class="model-note" id="hyperStatus">Loading…</span></div><div class="grid" id="hyperGrid"></div></section>
+    <section class="model-panel baseline" aria-labelledby="clipTitle"><div class="panel-heading"><h2 id="clipTitle">CLIP</h2><span class="model-note">Fixed</span></div><div class="grid" id="baselineGrid"></div></section>
+  </div>
+  <p class="sr-only" id="announcement" role="status"></p>
+</main>
+<dialog id="imageDialog" class="image-dialog" aria-label="Image preview"><button class="close" id="closeImage" aria-label="Close image">✕</button><img id="detailImage" alt=""><p id="imageCredit" hidden><span id="imageAuthor"></span> · <a id="imageLicense" target="_blank" rel="noopener"></a></p><a id="sourceLink" target="_blank" rel="noopener">View source ↗</a></dialog>
+<dialog id="pipelineDialog" aria-labelledby="pipelineTitle">
+  <div class="modal-heading"><h2 id="pipelineTitle">One description, changing distance</h2><button class="close" id="closePipeline" aria-label="Close explanation">✕</button></div>
+  <p>Each example uses one fixed text description, shown below. Hyper3-CLIP encodes it as a point in hyperbolic space. The slider moves that query point closer to or farther from the origin along the same direction.</p>
+  <p>At each position, every image in the gallery is ranked by the hyperbolic distance between the query point and that image; the nearest come first.</p>
+  <p>CLIP ranks the same gallery by cosine similarity to its own encoding of the description, so its results stay fixed for a given example. A Haystack pipeline coordinates both: it loads the gallery, encodes the description with each model and passes the results to rankers that apply each model&#x27;s own scoring.</p>
+  <p id="executionNote" class="note">The Haystack pipeline computed results for all 101 slider positions of each example beforehand. Moving the slider displays those results without running new model inference.</p>
+  <dl><dt>Description</dt><dd id="fixedQuery"></dd><dt>Query distance</dt><dd id="radiusValue"></dd></dl>
+  <p class="note">Broad and Specific are loose labels: moving the slider reorders images but doesn&#x27;t reliably add or remove scene details, and near the origin, different descriptions can return similar images.</p>
+  <details><summary id="traceLabel">Recorded Haystack pipeline trace</summary><pre id="trace"></pre></details>
+  <p id="photoNote" class="note">42 Creative Commons images. <a href="/haystack-hyper3-clip-v1/credits">Photo credits and licenses ↗</a></p>
+</dialog>
+<script src="/haystack-hyper3-clip-v1/static/runtime.js"></script>
+<script src="/haystack-hyper3-clip-v1/static/app.js?v=public-20260925"></script>
+</body></html>

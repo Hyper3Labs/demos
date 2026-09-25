@@ -1,0 +1,14 @@
+{
+  "name": "hyper3labs-demos",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "build": "python3 tools/build.py",
+    "check": "python3 tools/check.py",
+    "dev": "npm run build && wrangler dev",
+    "deploy": "npm run build && npm run check && wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "4.140.0"
+  }
+}

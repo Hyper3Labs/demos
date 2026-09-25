@@ -1,0 +1,15 @@
+{
+  "name": "hyper3-haystack-demo",
+  "compatibility_date": "2026-09-24",
+  "workers_dev": true,
+  "routes": [
+    {
+      "pattern": "demos.hyper3labs.com",
+      "custom_domain": true
+    }
+  ],
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "404-page"
+  }
+}
