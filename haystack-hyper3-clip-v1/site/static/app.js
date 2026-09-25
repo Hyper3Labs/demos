@@ -36,7 +36,7 @@ function renderExamples() {
 function renderGrid(id, rows) {
   const grid = $(id);
   const signature = rows.slice(0, TOP_K).map(row => row.id).join('|');
-  if (grid.dataset.signature === signature) return;
+  if (grid.dataset.signature === signature) return false;
   grid.dataset.signature = signature;
   grid.replaceChildren(...rows.slice(0, TOP_K).map(row => {
     const asset = byId[row.id];
@@ -60,6 +60,7 @@ function renderGrid(id, rows) {
     };
     return button;
   }));
+  return true;
 }
 function scheduleSearch(immediate = false) {
   clearTimeout(timer);
@@ -90,18 +91,18 @@ async function search(current) {
         body: JSON.stringify({query: example.query, radius_scale: radiusScale}),
         signal: controller.signal,
       });
-      data = await response.json();
+      data = await response.json().catch(() => ({}));
       if (!response.ok) throw Error(typeof data.detail === 'string' ? data.detail : 'Unable to load results. Move the slider to retry.');
     }
     if (current !== version) return;
-    renderGrid('hyperGrid', data.hyper3);
+    const changed = renderGrid('hyperGrid', data.hyper3);
     // Preserve the baseline DOM throughout a slider gesture. Only a new example updates it.
     if (baselineKey !== example.id) {renderGrid('baselineGrid', data.baseline); baselineKey = example.id;}
     $('fixedQuery').textContent = example.query;
     $('radiusValue').textContent = radiusScale.toFixed(3) + '× the encoded query radius';
     $('trace').textContent = JSON.stringify(data.trace, null, 2);
     $('hyperStatus').textContent = '';
-    $('announcement').textContent = 'Updated Hyper3 images for ' + example.label + '. CLIP remains fixed.';
+    if (changed) $('announcement').textContent = 'Updated Hyper3 images for ' + example.label + '. CLIP remains fixed.';
   } catch (error) {
     if (error.name === 'AbortError' || current !== version) return;
     $('error').textContent = error.message; $('error').hidden = false;
@@ -121,12 +122,16 @@ for (const id of ['pipelineDialog', 'imageDialog']) $(id).addEventListener('clic
   if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) $(id).close();
 });
 (async () => {
+  if (!staticDemo) {
+    $('executionNote').textContent = 'This local Haystack pipeline ranks the gallery on each slider change. Image embeddings and each description’s text embeddings are cached locally.';
+    $('traceLabel').textContent = 'Local Haystack pipeline trace';
+  }
   renderExamples(); updateSlider();
   for (const id of ['hyperGrid', 'baselineGrid']) $(id).innerHTML = '<div class="placeholder"></div>'.repeat(TOP_K);
   try {
     const response = await fetch(staticDemo ? basePath + 'data/library.json' : '/api/library');
     if (!response.ok) throw Error('Unable to load the image collection. Reload to retry.');
-    const data = await response.json(); byId = Object.fromEntries(data.assets.map(a => [a.id, a]));
+    const data = await response.json().catch(() => ({})); byId = Object.fromEntries(data.assets.map(a => [a.id, a]));
     ready = true; renderExamples();
     $('breadth').disabled = false;
     scheduleSearch(true);

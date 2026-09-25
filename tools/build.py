@@ -14,6 +14,8 @@ def discover(root=ROOT):
         folder = descriptor.parent
         if not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*', folder.name):
             raise ValueError(f'Invalid demo slug: {folder.name}')
+        if folder.name == 'shared':
+            raise ValueError('Reserved demo slug: shared')
         metadata = json.loads(descriptor.read_text())
         if not all(isinstance(metadata.get(k), str) and metadata[k].strip() for k in ['title', 'description']):
             raise ValueError(f'Missing title or description: {descriptor}')
@@ -38,7 +40,7 @@ def build():
         shutil.copy2(ROOT / 'shared' / name, out / name)
     cards = []
     for folder, metadata in demos:
-        shutil.copytree(folder / 'site', out / folder.name)
+        shutil.copytree(folder / 'site', out / folder.name, ignore=shutil.ignore_patterns('.DS_Store'))
         cards.append(f'<a class="demo-card" href="/{folder.name}/"><h2>{html.escape(metadata["title"])}</h2><p>{html.escape(metadata["description"])}</p><span>Open demo ↗</span></a>')
     template = (ROOT / 'shared/index.html').read_text()
     assert template.count('{{DEMO_CARDS}}') == 1

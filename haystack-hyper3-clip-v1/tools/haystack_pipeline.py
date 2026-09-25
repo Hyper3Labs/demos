@@ -6,7 +6,6 @@ import os
 os.environ.setdefault('HAYSTACK_TELEMETRY_ENABLED', 'false')
 from pathlib import Path
 import hashlib
-import importlib
 import json
 import time
 from functools import lru_cache
@@ -29,13 +28,11 @@ BASE_REV = '57c216476eefef5ab752ec549e440a49ae4ae5f3'
 torch.set_num_threads(4)
 CORPUS = json.loads((SITE/'data/library.json').read_text())
 if isinstance(CORPUS, dict): CORPUS = CORPUS['assets']
-BY_ID = {r['id']: r for r in CORPUS}
 
 class Models:
     def __init__(self):
         print('Loading Hyper3-CLIP and CLIP baseline', flush=True)
         self.hyper = AutoModel.from_pretrained(MODEL, revision=REVISION, trust_remote_code=True, local_files_only=True).eval()
-        self.expmap = importlib.import_module(type(self.hyper).__module__)._lorentz_exp_map0
         self.tokenizer = AutoTokenizer.from_pretrained(MODEL, revision=REVISION, local_files_only=True)
         self.clip = CLIPModel.from_pretrained(BASELINE, revision=BASE_REV, local_files_only=True).eval()
         self.processor = CLIPProcessor.from_pretrained(BASELINE, revision=BASE_REV, local_files_only=True)
@@ -68,12 +65,6 @@ class Models:
         return tangent,baseline
 
     @torch.inference_mode()
-    def text(self,query):
-        tangent,baseline=self.query_vectors(query)
-        native=self.expmap(tangent.float()*self.hyper.textual_alpha.float().exp(),self.hyper.curvature)
-        return native,baseline
-
-    @torch.inference_mode()
     def radial(self,query,radius_scale):
         tangent,baseline=self.query_vectors(query)
         scaled=tangent.double()*self.hyper.textual_alpha.double().exp()*radius_scale
@@ -97,16 +88,6 @@ class CollectionLoader:
         return {'documents':docs,'trace':{'component':'CollectionLoader','images':len(docs),'ms':round((time.perf_counter()-start)*1000,2)}}
 
 @component
-class BriefEncoder:
-    def __init__(self, models):
-        self.models = models
-
-    @component.output_types(native=Any, baseline=Any, trace=dict)
-    def run(self,query:str):
-        start=time.perf_counter(); n,b=self.models.text(query)
-        return {'native':n,'baseline':b,'trace':{'component':'BriefEncoder','ms':round((time.perf_counter()-start)*1000,2),'query':query,'native_dimensions':513,'baseline_dimensions':512}}
-
-@component
 class RadialEncoder:
     def __init__(self, models):
         self.models = models
@@ -120,12 +101,12 @@ class RadialEncoder:
             raise ValueError('radius_scale must be finite and between 0.05 and 2.0.')
         start=time.perf_counter()
         native,baseline,distance=self.models.radial(query,radius_scale)
-        return {'native':native,'baseline':baseline,'trace':{'component':'RadialEncoder','ms':round((time.perf_counter()-start)*1000,2),'query':query,'radius_scale':radius_scale,'origin_distance':distance,'direction':'fixed','method':'expmap0(radius_scale * textual_alpha * raw_query)','scoring':'lorentz_inner_product','baseline':'unchanged cosine query'}}
+        return {'native':native,'baseline':baseline,'trace':{'component':'RadialEncoder','ms':round((time.perf_counter()-start)*1000,2),'query':query,'radius_scale':radius_scale,'origin_distance':distance,'direction':'fixed','method':'expmap0(radius_scale * exp(textual_alpha) * raw_query)','scoring':'lorentz_inner_product','baseline':'unchanged cosine query'}}
 
 @component
 class ImageRanker:
     def __init__(self, models, mode):
-        if mode not in {'cone', 'lorentz', 'cosine'}:
+        if mode not in {'lorentz', 'cosine'}:
             raise ValueError('Unknown scoring mode: ' + mode)
         self.models = models
         self.mode = mode
@@ -135,12 +116,11 @@ class ImageRanker:
         positions=[models.positions[d.id] for d in documents]
         with torch.inference_mode():
             if not positions: scores=[]
-            elif self.mode=='cone': scores=models.hyper.cone_score(embedding,models.native[positions])[0]
             elif self.mode=='lorentz': scores=models.hyper.lorentz_inner_product(embedding,models.native[positions])[0]
             else: scores=(embedding@models.baseline[positions].T)[0]
         rows=[{'id':d.id,'score':float(s)} for d,s in zip(documents,scores)]
         rows.sort(key=lambda r:(-r['score'],r['id']))
-        names={'cone':'Hyper3ConeRanker','lorentz':'Hyper3LorentzRanker','cosine':'CLIPCosineRanker'}
+        names={'lorentz':'Hyper3LorentzRanker','cosine':'CLIPCosineRanker'}
         return {'results':rows,'trace':{'component':names[self.mode],'candidates':len(rows),'ms':round((time.perf_counter()-start)*1000,2),'scoring':self.mode}}
 
 def load_collection():
@@ -166,20 +146,6 @@ def build_radial_pipeline(models, document_store):
     pipeline.connect('collection.documents', 'baseline.documents')
     pipeline.connect('radial.native', 'hyper3.embedding')
     pipeline.connect('radial.baseline', 'baseline.embedding')
-    return pipeline
-
-
-def build_caption_pipeline(models, document_store):
-    """Legacy caption-search endpoint; separate from the radial website route."""
-    pipeline = Pipeline()
-    pipeline.add_component('collection', CollectionLoader(document_store))
-    pipeline.add_component('brief', BriefEncoder(models))
-    pipeline.add_component('hyper3', ImageRanker(models, 'cone'))
-    pipeline.add_component('baseline', ImageRanker(models, 'cosine'))
-    pipeline.connect('collection.documents', 'hyper3.documents')
-    pipeline.connect('collection.documents', 'baseline.documents')
-    pipeline.connect('brief.native', 'hyper3.embedding')
-    pipeline.connect('brief.baseline', 'baseline.embedding')
     return pipeline
 
 

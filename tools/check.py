@@ -3,6 +3,7 @@ from pathlib import Path
 from html.parser import HTMLParser
 from urllib.parse import urlsplit, unquote
 import json
+import math
 from build import ROOT, discover
 
 out = ROOT / 'dist'
@@ -25,6 +26,7 @@ for private in ['tools', '.git', '.github', '.env', 'requirements-inference.txt'
     assert not (out / private).exists()
 
 site = out / 'haystack-hyper3-clip-v1'
+assert '"precomputed": true' in (site / 'static/runtime.js').read_text(), 'Deployed demo must stay precomputed'
 library = json.loads((site / 'data/library.json').read_text())
 ids = {a['id'] for a in library['assets']}
 assert len(ids) == 42
@@ -38,6 +40,8 @@ for example in ['animals', 'people', 'coast']:
     first = data['positions'][0]['baseline']
     for i, row in enumerate(data['positions']):
         assert row['slider_position'] == i and row['total'] == len(ids)
+        assert math.isclose(row['radius_scale'], 0.05 * 40 ** (i / 100), rel_tol=1e-12)
+        assert row['trace'][2]['scoring'] == 'lorentz'
         assert row['baseline'] == first
         for model in ['hyper3', 'baseline']:
             assert len(row[model]) == 9 and all(r['id'] in ids for r in row[model])

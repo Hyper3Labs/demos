@@ -45,7 +45,7 @@ RadialEncoder ── native query ───── Hyper3LorentzRanker
 
 `ImageRanker(models, "lorentz")` is the Hyper3 ranker; `ImageRanker(models, "cosine")` is the CLIP comparison. Hyper3 uses 512 spatial coordinates plus one hyperboloid coordinate, with radius preserved. Its score is the Lorentz inner product, `-q[0]*x[0] + dot(q[1:], x[1:])`; larger scores give smaller hyperbolic distances. It evaluates every image in this small gallery. It does not use a cosine candidate prefilter or the normalized Sentence Transformers adapter.
 
-These are example components shipped in this repository, not built-in Haystack components or a separately published integration package. The optional HTTP server imports the same module. Models are loaded explicitly by `load_collection()` and cached locally; credentials and weights are not shipped with the website.
+These are example components shipped in this repository, not built-in Haystack components or a separately published integration package. The optional HTTP server imports the same module and exposes only radial retrieval through `/api/traverse`; obsolete cone-search and caption-comparison endpoints have been removed. Models are loaded explicitly by `load_collection()` and cached locally; credentials and weights are not shipped with the website.
 
 To verify or regenerate the recorded website results:
 
@@ -54,8 +54,12 @@ python tools/export_results.py --check-only  # Compare rankings without changing
 python tools/export_results.py               # Regenerate data
 ```
 
-Image embeddings are cached in the ignored `.cache/` directory. Export verifies constant direction, independent hyperbolic-distance ranking and exact CLIP invariance before writing results. `--check-only` also compares all 303 states' image ordering and scores with the recorded website data. The website's recorded data is included, so anyone can build the demo without model access.
+Image embeddings are cached in the ignored `.cache/` directory. Export verifies constant direction, independent hyperbolic-distance ranking and exact CLIP invariance before writing results. `--check-only` also compares the recorded top-9 image ordering and scores for all 303 states with the recorded website data. The website's recorded data is included, so anyone can build the demo without model access.
 
 ## Image attribution
 
 The 42 images were retained only when both COCO license metadata and current Flickr attribution records supported commercial reuse under CC BY, BY-SA or BY-ND 2.0. Files are unmodified COCO dataset images displayed with `object-fit: contain`. Individual licenses and original photo links are in [credits](site/credits.html) and `site/data/library.json`. The photographers do not endorse the demo. COCO annotations are CC BY 4.0; image descriptions are drawn from COCO and SugarCrepe.
+
+## Local live inference
+
+After caching the models and installing the inference dependencies above, run `python tools/server.py` and open http://127.0.0.1:7864/. The local wrapper serves the same interface with live Haystack ranking; the public site continues to use its recorded states. Image embeddings are cached in both cases.
